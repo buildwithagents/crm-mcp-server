@@ -12,14 +12,16 @@ BASE_URL = os.environ["CRM_BASE_URL"].rstrip("/")
 ACCOUNT_BASE_URL = os.environ.get("CRM_ACCOUNT_BASE_URL", "https://presales.businessbywire.com/restapigts").rstrip("/")
 CRM_USERNAME = os.environ["CRM_USERNAME"]
 CRM_PASSWORD = os.environ["CRM_PASSWORD"]
+ACCOUNT_USERNAME = os.environ.get("CRM_ACCOUNT_USERNAME", CRM_USERNAME)
+ACCOUNT_PASSWORD = os.environ.get("CRM_ACCOUNT_PASSWORD", CRM_PASSWORD)
 
 
-async def _get_token(base: str = None) -> str:
+async def _get_token(base: str = None, username: str = None, password: str = None) -> str:
     url = f"{base or BASE_URL}/oauth2/token"
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             url,
-            json={"userName": CRM_USERNAME, "password": CRM_PASSWORD},
+            json={"userName": username or CRM_USERNAME, "password": password or CRM_PASSWORD},
             timeout=30,
         )
         resp.raise_for_status()
@@ -141,7 +143,7 @@ async def get_account(account_id: str) -> dict:
     Args:
         account_id: The CRM Account ID (e.g. "2463")
     """
-    token = await _get_token()
+    token = await _get_token(base=ACCOUNT_BASE_URL, username=ACCOUNT_USERNAME, password=ACCOUNT_PASSWORD)
 
     output_fields = list(ACCOUNT_FIELD_MAP.keys())
 
