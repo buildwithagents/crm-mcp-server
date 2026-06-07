@@ -92,6 +92,102 @@ async def create_lead(
         return resp.json()
 
 
+ACCOUNT_FIELD_MAP = {
+    "StatusCode": "Status Code",
+    "Name": "Account Name",
+    "ParentAccountName": "Parent Account Name",
+    "acc_ex4_54": "CIF",
+    "Industry": "Industry",
+    "AccountID": "Account ID",
+    "Acc_ex2_68": "Branch",
+    "Acc_ex2_87": "Incorporation Date",
+    "Acc_ex1_52": "Employee Strength",
+    "Acc_ex4_40": "Long Term Rating Agency",
+    "Acc_ex4_41": "Long Term Rating",
+    "Acc_ex4_44": "Short Term Rating Agency",
+    "Acc_ex4_45": "Short Term Rating",
+    "Acc_ex1_43": "Customer Rating",
+    "Acc_ex5_23": "Checklist Complete",
+    "Acc_ex1_49": "Customer Band",
+    "Acc_ex4_1": "Account Type",
+    "Acc_ex4_28": "Moody Rating",
+    "Acc_ex1_8": "Customer Since",
+    "AccountType": "Account Category",
+    "Phone": "Phone",
+    "MobilePhone": "Mobile Phone",
+    "OfficePhone": "Office Phone",
+    "Email": "Email",
+    "Acc_ex2_45": "Team Leader",
+    "AssignedToName": "Relationship Manager (RM)",
+    "Acc_ex8_24": "Trade Finance Relationship Manager",
+    "Acc_ex8_25": "Trade Finance RM",
+    "Acc_ex8_23": "Corporate RM",
+    "HtmlText_2870": "Past Experience",
+    "Acc_ex5_97": "Nature of Business",
+    "HtmlText_2871": "Key Strengths and Weaknesses",
+    "HtmlText_2872": "Promoter Information",
+}
+
+
+@mcp.tool()
+async def get_account(account_id: str) -> dict:
+    """
+    Fetch detailed account information from the CRM by Account ID.
+
+    Returns a structured account profile with human-readable field names covering:
+    basic info, contact details, ratings, team assignments, and business background.
+
+    Args:
+        account_id: The CRM Account ID (e.g. "2463")
+    """
+    token = await _get_token()
+
+    output_fields = list(ACCOUNT_FIELD_MAP.keys())
+
+    payload = {
+        "outputFieldList": output_fields,
+        "objectSearchCondition": [
+            {"FieldName": "AccountId", "Value": account_id, "Operation": "equal"}
+        ],
+        "queryOptions": {
+            "advanceFilterExpression": "",
+            "PageSize": "50",
+            "Index": "1",
+            "OrderByFieldName": "",
+            "VisibilityOption": "AllRecords",
+        },
+    }
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{BASE_URL}/crmWebApi/fetchobject?objectType=7&itemId={account_id}&viewid=0",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        raw = resp.json()
+
+    # Remap raw field names to human-readable names
+    records = raw if isinstance(raw, list) else raw.get("records") or raw.get("data") or [raw]
+    renamed = []
+    for record in records:
+        renamed_record = {}
+        for raw_key, value in record.items():
+            label = ACCOUNT_FIELD_MAP.get(raw_key, raw_key)
+            renamed_record[label] = value
+        renamed.append(renamed_record)
+
+    return {
+        "account_id": account_id,
+        "total_records": len(renamed),
+        "account": renamed[0] if len(renamed) == 1 else renamed,
+    }
+
+
 @mcp.tool()
 async def test_connection() -> dict:
     """Test connectivity to the CRM by checking auth and the test API endpoint."""
