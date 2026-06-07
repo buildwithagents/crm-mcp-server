@@ -14,16 +14,16 @@ CRM_USERNAME = os.environ["CRM_USERNAME"]
 CRM_PASSWORD = os.environ["CRM_PASSWORD"]
 
 
-async def _get_token() -> str:
+async def _get_token(base: str = None) -> str:
+    url = f"{base or BASE_URL}/oauth2/token"
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"{BASE_URL}/oauth2/token",
+            url,
             json={"userName": CRM_USERNAME, "password": CRM_PASSWORD},
             timeout=30,
         )
         resp.raise_for_status()
         data = resp.json()
-        # Try common token field names
         token = (
             data.get("access_token")
             or data.get("token")
@@ -141,7 +141,7 @@ async def get_account(account_id: str) -> dict:
     Args:
         account_id: The CRM Account ID (e.g. "2463")
     """
-    token = await _get_token()
+    token = await _get_token(base=ACCOUNT_BASE_URL)
 
     output_fields = list(ACCOUNT_FIELD_MAP.keys())
 
