@@ -9,6 +9,7 @@ _port = int(os.environ.get("PORT", 8000))
 mcp = FastMCP("CRM Lead Creator", host="0.0.0.0", port=_port)
 
 BASE_URL = os.environ["CRM_BASE_URL"].rstrip("/")
+ACCOUNT_BASE_URL = os.environ.get("CRM_ACCOUNT_BASE_URL", "https://presales.businessbywire.com/restapigts").rstrip("/")
 CRM_USERNAME = os.environ["CRM_USERNAME"]
 CRM_PASSWORD = os.environ["CRM_PASSWORD"]
 
@@ -160,7 +161,7 @@ async def get_account(account_id: str) -> dict:
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"{BASE_URL}/crmWebApi/fetchobject?objectType=7&itemId={account_id}&viewid=0",
+            f"{ACCOUNT_BASE_URL}/crmWebApi/fetchobject?objectType=7&itemId={account_id}&viewid=0",
             json=payload,
             headers={
                 "Authorization": f"Bearer {token}",
