@@ -8,18 +8,22 @@ load_dotenv()
 _port = int(os.environ.get("PORT", 8000))
 mcp = FastMCP("CRM Lead Creator", host="0.0.0.0", port=_port)
 
-BASE_URL = os.environ["CRM_BASE_URL"].rstrip("/")
-ACCOUNT_BASE_URL = os.environ.get("CRM_ACCOUNT_BASE_URL", "https://presales.businessbywire.com/restapigts").rstrip("/")
-CRM_USERNAME = os.environ["CRM_USERNAME"]
-CRM_PASSWORD = os.environ["CRM_PASSWORD"]
+# Credentials for create_lead (gold8 instance)
+GOLD8_BASE_URL = os.environ["CRM_GOLD8_BASE_URL"].rstrip("/")
+GOLD8_USERNAME = os.environ["CRM_GOLD8_USERNAME"]
+GOLD8_PASSWORD = os.environ["CRM_GOLD8_PASSWORD"]
+
+# Credentials for get_account (gts instance)
+GTS_BASE_URL = os.environ["CRM_GTS_BASE_URL"].rstrip("/")
+GTS_USERNAME = os.environ["CRM_GTS_USERNAME"]
+GTS_PASSWORD = os.environ["CRM_GTS_PASSWORD"]
 
 
-async def _get_token(base: str = None) -> str:
-    url = f"{base or BASE_URL}/oauth2/token"
+async def _get_token(base_url: str, username: str, password: str) -> str:
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            url,
-            json={"userName": CRM_USERNAME, "password": CRM_PASSWORD},
+            f"{base_url}/oauth2/token",
+            json={"userName": username, "password": password},
             timeout=30,
         )
         resp.raise_for_status()
@@ -60,7 +64,7 @@ async def create_lead(
         layout_id: CRM layout ID (default 102796)
         process_id: CRM process ID (default 10000893)
     """
-    token = await _get_token()
+    token = await _get_token(GOLD8_BASE_URL, GOLD8_USERNAME, GOLD8_PASSWORD)
 
     payload = [
         {
@@ -84,7 +88,7 @@ async def create_lead(
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"{BASE_URL}/crmWebApi/saveObject",
+            f"{GOLD8_BASE_URL}/crmWebApi/saveObject",
             json=payload,
             headers={"Authorization": f"Bearer {token}"},
             timeout=30,
@@ -141,7 +145,7 @@ async def get_account(account_id: str) -> dict:
     Args:
         account_id: The CRM Account ID (e.g. "2463")
     """
-    token = await _get_token(base=ACCOUNT_BASE_URL)
+    token = await _get_token(GTS_BASE_URL, GTS_USERNAME, GTS_PASSWORD)
 
     output_fields = list(ACCOUNT_FIELD_MAP.keys())
 
@@ -161,7 +165,7 @@ async def get_account(account_id: str) -> dict:
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"{ACCOUNT_BASE_URL}/crmWebApi/fetchobject?objectType=7&itemId={account_id}&viewid=0",
+            f"{GTS_BASE_URL}/crmWebApi/fetchobject?objectType=7&itemId={account_id}&viewid=0",
             json=payload,
             headers={
                 "Authorization": f"Bearer {token}",
@@ -194,20 +198,27 @@ async def test_connection() -> dict:
     """Test connectivity to the CRM by checking auth and the test API endpoint."""
     results = {}
 
-    # Test auth
+    # Test gold8 auth (used by create_lead)
     try:
-        token = await _get_token()
-        results["auth"] = "ok" if token else "no token returned"
+        token = await _get_token(GOLD8_BASE_URL, GOLD8_USERNAME, GOLD8_PASSWORD)
+        results["gold8_auth"] = "ok" if token else "no token returned"
     except Exception as e:
-        results["auth"] = f"error: {e}"
+        results["gold8_auth"] = f"error: {e}"
 
-    # Test API endpoint
+    # Test gts auth (used by get_account)
+    try:
+        token = await _get_token(GTS_BASE_URL, GTS_USERNAME, GTS_PASSWORD)
+        results["gts_auth"] = "ok" if token else "no token returned"
+    except Exception as e:
+        results["gts_auth"] = f"error: {e}"
+
+    # Test gold8 API endpoint
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{BASE_URL}/testapi", timeout=10)
-            results["testapi"] = f"HTTP {resp.status_code}"
+            resp = await client.get(f"{GOLD8_BASE_URL}/testapi", timeout=10)
+            results["gold8_testapi"] = f"HTTP {resp.status_code}"
     except Exception as e:
-        results["testapi"] = f"error: {e}"
+        results["gold8_testapi"] = f"error: {e}"
 
     return results
 
