@@ -141,7 +141,7 @@ async def get_account(account_id: str) -> dict:
     Args:
         account_id: The CRM Account ID (e.g. "2463")
     """
-    token = await _get_token(base=ACCOUNT_BASE_URL)
+    token = await _get_token()
 
     output_fields = list(ACCOUNT_FIELD_MAP.keys())
 
